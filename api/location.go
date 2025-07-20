@@ -43,3 +43,37 @@ func UpdateLocation(redisClient *storage.RedisClient, casssandraClient *storage.
 		w.WriteHeader(http.StatusOK)
 	}
 }
+
+func GetNearbyFriends(redisClient *storage.RedisClient) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := mux.Vars(r)["id"]
+		radius := 1000.0
+
+		// get friends
+		friends, err := redisClient.Client.SMembers(r.Context(), "friends: "+userID).Result()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// gettin nearby users
+		nearby, err := redisClient.GetNearbyFriends(r.Context(), userID, radius)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// filter nearby friends
+		var ans []models.NearbyFriend
+		for _, friend := range friends {
+			for _, nearbyID := range nearby {
+				if friend == nearbyID {
+					name, _ := redisClient.Client.HGet(r.Context(), "users", friend).Result()
+					ans = append(ans, models.NearbyFriend{UserID: friend, Name: name, Distance: 0})
+				}
+			}
+		}
+
+		json.NewEncoder(w).Encode(ans)
+	}
+}
