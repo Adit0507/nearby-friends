@@ -2,9 +2,11 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/Adit0507/nearby-friends/api"
 	"github.com/Adit0507/nearby-friends/storage"
+	"github.com/Adit0507/nearby-friends/websocket"
 	"github.com/gorilla/mux"
 )
 
@@ -25,4 +27,11 @@ func main() {
     r.HandleFunc("/user/{id}/location", api.UpdateLocation(redisClient, cassandraClient)).Methods("POST")
     r.HandleFunc("/user/{id}/nearby", api.GetNearbyFriends(redisClient)).Methods("GET")
 
+	// websocket route
+	r.HandleFunc("/ws/{userID}", websocket.HandleWebSocket(redisClient))
+
+	log.Println("Server starting on :8080")
+	if err := http.ListenAndServe(":8080", r); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
 }
